@@ -3,7 +3,7 @@
 TypeScript + Express backend for the MockQube AI mock DSA interview platform.
 
 ## Features
-- JWT auth (`signup`, `login`, `forgot-password`, `reset-password`)
+- JWT auth (`signup`, `login`, `forgot-password`, `reset-password`) with Resend email integration for forgot-password
 - MongoDB/Mongoose models for users, sessions, messages, submissions, reports
 - AI interviewer integration with OpenAI for follow-up questions + report generation
 - Interview lifecycle APIs (create, list, update, messages, code submissions, report)
@@ -126,3 +126,7 @@ npm run dev
 - `npm run start` – run compiled app
 - `npm run typecheck` – type check only
 - `npm run test` – tests
+
+## Environment variables
+- `RESEND_API_KEY` - API key for sending forgot-password emails via Resend (budget-friendly option with a free tier).
+- `RESEND_FROM_EMAIL` - verified sender email/domain configured in Resend.
