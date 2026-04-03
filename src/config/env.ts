@@ -10,7 +10,9 @@ const EnvSchema = z.object({
   JWT_SECRET: z.string().min(16),
   JWT_EXPIRES_IN: z.string().default('7d'),
   OPENAI_API_KEY: z.string().min(1),
-  OPENAI_MODEL: z.string().default('gpt-4.1-mini')
+  OPENAI_MODEL: z.string().default('gpt-4.1-mini'),
+  RESEND_API_KEY: z.string().min(1).optional(),
+  RESEND_FROM_EMAIL: z.string().email().default('onboarding@resend.dev')
 });
 
 export const env = EnvSchema.parse(process.env);

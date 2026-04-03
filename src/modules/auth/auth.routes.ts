@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { ApiError } from '../../common/api-error.js';
+import { env } from '../../config/env.js';
 import { signAccessToken } from '../../middleware/auth.js';
 import { UserModel } from '../../models/user.model.js';
 import { forgotPasswordSchema, loginSchema, resetPasswordSchema, signupSchema } from './auth.schema.js';
+import { sendForgotPasswordEmail } from '../../services/email/resend-email.service.js';
 
 const router = Router();
 
@@ -57,12 +59,20 @@ router.post('/forgot-password', async (req, res) => {
   const payload = forgotPasswordSchema.parse(req.body);
   const email = payload.email.toLowerCase();
 
-  const exists = await UserModel.exists({ email });
+  const user = await UserModel.findOne({ email });
+
+  if (user) {
+    const resetLink = `${env.FRONTEND_ORIGIN}/reset-password?email=${encodeURIComponent(email)}`;
+    await sendForgotPasswordEmail({
+      to: user.email,
+      name: user.name,
+      resetLink
+    });
+  }
+
   return res.status(200).json({
     success: true,
-    message: exists
-      ? 'Password reset flow initiated. Integrate email provider in production.'
-      : 'If account exists, password reset flow was initiated.'
+    message: 'If account exists, password reset flow was initiated.'
   });
 });
 
