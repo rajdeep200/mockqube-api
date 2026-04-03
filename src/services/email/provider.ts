@@ -4,7 +4,7 @@ import { env } from '../../config/env.js';
 const resend = new Resend(env.RESEND_API_KEY);
 
 export async function sendPasswordResetEmail(input: { to: string; resetUrl: string; name: string }): Promise<void> {
-  await resend.emails.send({
+  const response = await resend.emails.send({
     from: env.EMAIL_FROM,
     to: input.to,
     subject: 'Reset your MockQube password',
@@ -17,4 +17,8 @@ export async function sendPasswordResetEmail(input: { to: string; resetUrl: stri
       </div>
     `
   });
+
+  if (response.error) {
+    throw new Error(response.error.message);
+  }
 }

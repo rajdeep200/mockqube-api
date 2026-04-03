@@ -71,14 +71,23 @@ router.post('/forgot-password', async (req, res) => {
     const tokenHash = hashResetToken(rawToken);
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
-    await PasswordResetTokenModel.create({
+    await PasswordResetTokenModel.deleteMany({ userId: user._id, usedAt: null });
+    const tokenDoc = await PasswordResetTokenModel.create({
       userId: user._id,
       tokenHash,
       expiresAt
     });
 
     const resetUrl = `${env.APP_BASE_URL}/reset-password?token=${rawToken}`;
-    await sendPasswordResetEmail({ to: user.email, resetUrl, name: user.name });
+
+    try {
+      await sendPasswordResetEmail({ to: user.email, resetUrl, name: user.name });
+    } catch (error) {
+      await PasswordResetTokenModel.deleteOne({ _id: tokenDoc._id });
+      throw new ApiError(502, 'EMAIL_PROVIDER_ERROR', 'Failed to send password reset email.', {
+        reason: error instanceof Error ? error.message : 'unknown'
+      });
+    }
   }
 
   return res.status(200).json({

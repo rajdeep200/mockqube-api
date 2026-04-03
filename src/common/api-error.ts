@@ -6,6 +6,7 @@ export type ErrorCode =
   | 'CONFLICT'
   | 'RATE_LIMITED'
   | 'AI_PROVIDER_ERROR'
+  | 'EMAIL_PROVIDER_ERROR'
   | 'INTERNAL_SERVER_ERROR';
 
 export class ApiError extends Error {
