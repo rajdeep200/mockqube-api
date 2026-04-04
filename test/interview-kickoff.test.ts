@@ -145,6 +145,74 @@ test('integration: PATCH to in_progress then GET messages returns kickoff', asyn
   assert.equal(listResponse.body.data[0].speaker, 'ai');
 });
 
+test('integration: first GET messages promotes created session and returns kickoff', async (t) => {
+  const app = await getApp();
+  const bearer = authHeader();
+  const userId = '507f1f77bcf86cd799439011';
+  const sessionId = '64f0b8b7f0a4c8f9d4c77777';
+
+  const sessionState = {
+    _id: sessionId,
+    userId,
+    company: 'MockQube',
+    difficulty: 'medium',
+    duration: 45,
+    role: 'Backend Engineer',
+    status: 'created'
+  };
+  const messages: any[] = [];
+
+  t.mock.method(InterviewSessionModel, 'findOne', async (query: any) => {
+    if (String(query?._id) !== sessionId || query?.userId !== userId) return null;
+    return { ...sessionState } as any;
+  });
+
+  t.mock.method(InterviewSessionModel, 'findOneAndUpdate', async (query: any, update: any) => {
+    if (String(query?._id) !== sessionId || query?.userId !== userId) return null;
+    if (query?.status && query.status !== sessionState.status) return null;
+    Object.assign(sessionState, update.$set ?? {});
+    return { ...sessionState } as any;
+  });
+
+  t.mock.method(InterviewSessionModel, 'updateOne', async () => ({ acknowledged: true }) as any);
+
+  t.mock.method(InterviewMessageModel, 'findOne', async (query: any) => {
+    if (query?.isKickoff === true) return messages.find((m) => m.isKickoff) ?? null;
+    return messages.find((m) => m.sessionId === String(query?.sessionId)) ?? null;
+  });
+
+  t.mock.method(InterviewMessageModel, 'find', (query: any) => ({
+    sort: async () => messages.filter((m) => m.sessionId === String(query?.sessionId))
+  }) as any);
+
+  t.mock.method(InterviewMessageModel, 'create', async (payload: any) => {
+    const doc = {
+      _id: `msg-${messages.length + 1}`,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      ...payload
+    };
+    messages.push(doc);
+    return doc as any;
+  });
+
+  t.mock.method(interviewerService, 'generateInterviewerReply', async () => ({
+    nextQuestion: 'Walk me through your approach to caching.',
+    followUpHint: 'Cover invalidation strategies.',
+    communicationNote: 'good'
+  }));
+
+  const listResponse = await request(app)
+    .get(`/v1/interview-sessions/${sessionId}/messages`)
+    .set('Authorization', bearer);
+
+  assert.equal(listResponse.status, 200);
+  assert.equal(sessionState.status, 'in_progress');
+  assert.equal(Array.isArray(listResponse.body.data), true);
+  assert.equal(listResponse.body.data.length, 1);
+  assert.equal(listResponse.body.data[0].speaker, 'ai');
+});
+
 test('regression: POST user message flow still stores user and ai messages', async (t) => {
   const app = await getApp();
   const bearer = authHeader();

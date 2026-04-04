@@ -208,7 +208,21 @@ router.post('/:id/messages', aiRateLimit, async (req, res) => {
  */
 router.get('/:id/messages', async (req, res) => {
   const authReq = req as AuthenticatedRequest;
-  const session = await getOwnedSession(authReq, req.params.id);
+  let session = await getOwnedSession(authReq, req.params.id);
+
+  if (session.status === 'created') {
+    const promotedSession = await InterviewSessionModel.findOneAndUpdate(
+      { _id: session._id, userId: authReq.user!.sub, status: 'created' },
+      { $set: { status: 'in_progress' } },
+      { new: true }
+    );
+
+    if (promotedSession) {
+      session = promotedSession;
+    }
+  }
+
+  await ensureKickoffMessageForSession(session);
 
   const messages = await InterviewMessageModel.find({ sessionId: session._id }).sort({ createdAt: 1 });
   return res.status(200).json({ data: messages });
