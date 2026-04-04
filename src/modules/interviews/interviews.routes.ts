@@ -9,6 +9,7 @@ import { InterviewSessionModel } from '../../models/interview-session.model.js';
 import { generateEvaluationReport, generateInterviewerReply } from '../../services/openai/interviewer.service.js';
 import { aiRateLimit } from '../../middleware/rate-limit.js';
 import { createCodeSubmissionSchema, createMessageSchema, createSessionSchema, patchSessionSchema } from './interviews.schema.js';
+import { ensureKickoffMessageForSession, shouldGenerateKickoff } from './interview-kickoff.service.js';
 
 const router = Router();
 router.use(authRequired);
@@ -139,6 +140,9 @@ router.patch('/:id', async (req, res) => {
     throw new ApiError(400, 'VALIDATION_ERROR', 'Invalid session id.');
   }
 
+  const previousSession = await InterviewSessionModel.findOne({ _id: req.params.id, userId: authReq.user!.sub });
+  if (!previousSession) throw new ApiError(404, 'NOT_FOUND', 'Interview session not found.');
+
   const session = await InterviewSessionModel.findOneAndUpdate(
     { _id: req.params.id, userId: authReq.user!.sub },
     { $set: payload },
@@ -146,6 +150,11 @@ router.patch('/:id', async (req, res) => {
   );
 
   if (!session) throw new ApiError(404, 'NOT_FOUND', 'Interview session not found.');
+
+  if (shouldGenerateKickoff(previousSession.status, payload.status)) {
+    await ensureKickoffMessageForSession(session);
+  }
+
   return res.status(200).json(session);
 });
 

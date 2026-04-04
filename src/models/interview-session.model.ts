@@ -12,7 +12,9 @@ const InterviewSessionSchema = new Schema(
       enum: ['created', 'in_progress', 'completed', 'cancelled'],
       default: 'created',
       index: true
-    }
+    },
+    kickoffGeneratedAt: { type: Date, default: null },
+    kickoffMessageId: { type: Schema.Types.ObjectId, ref: 'InterviewMessage', default: null }
   },
   { timestamps: true }
 );
