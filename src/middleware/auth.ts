@@ -10,11 +10,13 @@ export interface JwtPayload {
 }
 
 export interface AuthenticatedRequest extends Request {
-  user: JwtPayload;
+  user?: JwtPayload;
 }
 
 export function signAccessToken(payload: JwtPayload): string {
-  return jwt.sign(payload, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN });
+  return jwt.sign(payload, env.JWT_SECRET as jwt.Secret, {
+    expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn']
+  } as jwt.SignOptions);
 }
 
 export function authRequired(req: Request, _res: Response, next: NextFunction): void {

@@ -19,9 +19,31 @@ function parsePaging(query: { page?: unknown; pageSize?: unknown }): { page: num
   return { page, pageSize };
 }
 
+async function getOwnedSession(req: AuthenticatedRequest, id?: string) {
+  if (!id) {
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Session id is required.');
+  }
+  if (!Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Invalid session id.');
+  }
+
+  const session = await InterviewSessionModel.findOne({ _id: id, userId: req.user!.sub });
+  if (!session) throw new ApiError(404, 'NOT_FOUND', 'Interview session not found.');
+  return session;
+}
+
+/**
+ * @openapi
+ * /v1/interview-sessions:
+ *   post:
+ *     tags: [Interview Sessions]
+ *     security: [{ bearerAuth: [] }]
+ *     summary: Create interview session
+ */
 router.post('/', async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
   const payload = createSessionSchema.parse(req.body);
-  const userId = (req as AuthenticatedRequest).user.sub;
+  const userId = authReq.user!.sub;
 
   const session = await InterviewSessionModel.create({
     userId,
@@ -45,8 +67,16 @@ router.post('/', async (req, res) => {
   });
 });
 
+/**
+ * @openapi
+ * /v1/interview-sessions:
+ *   get:
+ *     tags: [Interview Sessions]
+ *     security: [{ bearerAuth: [] }]
+ *     summary: List interview sessions
+ */
 router.get('/', async (req, res) => {
-  const userId = (req as AuthenticatedRequest).user.sub;
+  const userId = (req as AuthenticatedRequest).user!.sub;
   const { page, pageSize } = parsePaging({ page: req.query.page, pageSize: req.query.pageSize });
   const status = typeof req.query.status === 'string' ? req.query.status : undefined;
 
@@ -79,24 +109,38 @@ router.get('/', async (req, res) => {
   });
 });
 
+/**
+ * @openapi
+ * /v1/interview-sessions/{id}:
+ *   get:
+ *     tags: [Interview Sessions]
+ *     security: [{ bearerAuth: [] }]
+ *     summary: Get interview session detail
+ */
 router.get('/:id', async (req, res) => {
-  const userId = (req as AuthenticatedRequest).user.sub;
-  if (!Types.ObjectId.isValid(req.params.id)) {
-    throw new ApiError(400, 'VALIDATION_ERROR', 'Invalid session id.');
-  }
-
-  const session = await InterviewSessionModel.findOne({ _id: req.params.id, userId });
-  if (!session) throw new ApiError(404, 'NOT_FOUND', 'Interview session not found.');
+  const authReq = req as AuthenticatedRequest;
+  const session = await getOwnedSession(authReq, req.params.id);
 
   return res.status(200).json(session);
 });
 
+/**
+ * @openapi
+ * /v1/interview-sessions/{id}:
+ *   patch:
+ *     tags: [Interview Sessions]
+ *     security: [{ bearerAuth: [] }]
+ *     summary: Update interview session status
+ */
 router.patch('/:id', async (req, res) => {
-  const userId = (req as AuthenticatedRequest).user.sub;
+  const authReq = req as AuthenticatedRequest;
   const payload = patchSessionSchema.parse(req.body);
+  if (!Types.ObjectId.isValid(req.params.id)) {
+    throw new ApiError(400, 'VALIDATION_ERROR', 'Invalid session id.');
+  }
 
   const session = await InterviewSessionModel.findOneAndUpdate(
-    { _id: req.params.id, userId },
+    { _id: req.params.id, userId: authReq.user!.sub },
     { $set: payload },
     { new: true }
   );
@@ -105,12 +149,19 @@ router.patch('/:id', async (req, res) => {
   return res.status(200).json(session);
 });
 
+/**
+ * @openapi
+ * /v1/interview-sessions/{id}/messages:
+ *   post:
+ *     tags: [Interview Messages]
+ *     security: [{ bearerAuth: [] }]
+ *     summary: Post user message and get AI follow-up
+ */
 router.post('/:id/messages', aiRateLimit, async (req, res) => {
-  const userId = (req as AuthenticatedRequest).user.sub;
+  const authReq = req as AuthenticatedRequest;
   const payload = createMessageSchema.parse(req.body);
 
-  const session = await InterviewSessionModel.findOne({ _id: req.params.id, userId });
-  if (!session) throw new ApiError(404, 'NOT_FOUND', 'Interview session not found.');
+  const session = await getOwnedSession(authReq, req.params.id);
 
   const userMessage = await InterviewMessageModel.create({ sessionId: session._id, speaker: 'user', text: payload.text });
 
@@ -138,20 +189,34 @@ router.post('/:id/messages', aiRateLimit, async (req, res) => {
   });
 });
 
+/**
+ * @openapi
+ * /v1/interview-sessions/{id}/messages:
+ *   get:
+ *     tags: [Interview Messages]
+ *     security: [{ bearerAuth: [] }]
+ *     summary: List messages for a session
+ */
 router.get('/:id/messages', async (req, res) => {
-  const userId = (req as AuthenticatedRequest).user.sub;
-  const session = await InterviewSessionModel.findOne({ _id: req.params.id, userId });
-  if (!session) throw new ApiError(404, 'NOT_FOUND', 'Interview session not found.');
+  const authReq = req as AuthenticatedRequest;
+  const session = await getOwnedSession(authReq, req.params.id);
 
   const messages = await InterviewMessageModel.find({ sessionId: session._id }).sort({ createdAt: 1 });
   return res.status(200).json({ data: messages });
 });
 
+/**
+ * @openapi
+ * /v1/interview-sessions/{id}/code-submissions:
+ *   post:
+ *     tags: [Code Submissions]
+ *     security: [{ bearerAuth: [] }]
+ *     summary: Submit code for a session
+ */
 router.post('/:id/code-submissions', async (req, res) => {
-  const userId = (req as AuthenticatedRequest).user.sub;
+  const authReq = req as AuthenticatedRequest;
   const payload = createCodeSubmissionSchema.parse(req.body);
-  const session = await InterviewSessionModel.findOne({ _id: req.params.id, userId });
-  if (!session) throw new ApiError(404, 'NOT_FOUND', 'Interview session not found.');
+  const session = await getOwnedSession(authReq, req.params.id);
 
   const submission = await CodeSubmissionModel.create({
     sessionId: session._id,
@@ -163,10 +228,17 @@ router.post('/:id/code-submissions', async (req, res) => {
   return res.status(201).json(submission);
 });
 
+/**
+ * @openapi
+ * /v1/interview-sessions/{id}/report:
+ *   get:
+ *     tags: [Reports]
+ *     security: [{ bearerAuth: [] }]
+ *     summary: Get or generate interview feedback report
+ */
 router.get('/:id/report', aiRateLimit, async (req, res) => {
-  const userId = (req as AuthenticatedRequest).user.sub;
-  const session = await InterviewSessionModel.findOne({ _id: req.params.id, userId });
-  if (!session) throw new ApiError(404, 'NOT_FOUND', 'Interview session not found.');
+  const authReq = req as AuthenticatedRequest;
+  const session = await getOwnedSession(authReq, req.params.id);
 
   let report = await FeedbackReportModel.findOne({ sessionId: session._id });
   if (!report) {

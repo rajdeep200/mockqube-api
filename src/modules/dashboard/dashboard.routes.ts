@@ -6,8 +6,16 @@ import { InterviewSessionModel } from '../../models/interview-session.model.js';
 const router = Router();
 router.use(authRequired);
 
+/**
+ * @openapi
+ * /v1/dashboard/summary:
+ *   get:
+ *     tags: [Dashboard]
+ *     security: [{ bearerAuth: [] }]
+ *     summary: Aggregate dashboard metrics for current user
+ */
 router.get('/summary', async (req, res) => {
-  const userId = (req as AuthenticatedRequest).user.sub;
+  const userId = (req as AuthenticatedRequest).user!.sub;
 
   const sessions = await InterviewSessionModel.find({ userId }).sort({ createdAt: -1 });
   const completedIds = sessions.filter((s) => s.status === 'completed').map((s) => s._id);
@@ -15,7 +23,12 @@ router.get('/summary', async (req, res) => {
 
   const scoreCount = reports.length * 4;
   const scoreSum = reports.reduce(
-    (acc, r) => acc + r.scores.accuracy + r.scores.communication + r.scores.efficiency + r.scores.problemSolving,
+    (acc, r) =>
+      acc +
+      (r.scores?.accuracy ?? 0) +
+      (r.scores?.communication ?? 0) +
+      (r.scores?.efficiency ?? 0) +
+      (r.scores?.problemSolving ?? 0),
     0
   );
 

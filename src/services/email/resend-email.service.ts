@@ -1,6 +1,5 @@
 import { env } from '../../config/env.js';
 import { logger } from '../../common/logger.js';
-import { Resend } from 'resend';
 
 type ForgotPasswordEmailParams = {
   to: string;
@@ -26,6 +25,7 @@ export const sendForgotPasswordEmail = async ({ to, name, resetLink }: ForgotPas
     return;
   }
 
+  const { Resend } = await import('resend');
   const resend = new Resend(env.RESEND_API_KEY);
   const { error } = await resend.emails.send({
     from: env.RESEND_FROM_EMAIL,
