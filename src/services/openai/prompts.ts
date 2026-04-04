@@ -2,7 +2,7 @@ export function buildInterviewerPrompt(input: {
   company: string;
   difficulty: string;
   duration: number;
-  role?: string | null;
+  role?: string | null | undefined;
   transcript: Array<{ speaker: 'ai' | 'user'; text: string }>;
 }): string {
   const role = input.role ?? 'Software Engineer';

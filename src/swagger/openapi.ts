@@ -20,5 +20,5 @@ export const swaggerSpec = swaggerJSDoc({
       }
     }
   },
-  apis: ['./src/modules/**/*.ts']
+  apis: ['./src/modules/**/*.ts', './src/app.ts']
 });

@@ -19,6 +19,13 @@ app.use(express.json({ limit: '1mb' }));
 app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(globalRateLimit);
 
+/**
+ * @openapi
+ * /health:
+ *   get:
+ *     tags: [Utility]
+ *     summary: Health check
+ */
 app.get('/health', (_req, res) => {
   return res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });

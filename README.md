@@ -64,7 +64,7 @@ Auth
 - POST /v1/auth/reset-password:
 ```json
 {
-	"email": "ada@example.com",
+	"token": "token-from-forgot-password-link",
 	"newPassword": "N3wStr0ngPass!"
 }
 ```
