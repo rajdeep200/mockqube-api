@@ -128,5 +128,7 @@ npm run dev
 - `npm run test` – tests
 
 ## Environment variables
+- `FRONTEND_ORIGINS` - comma-separated allowlist of frontend origins for CORS (example: `http://localhost:8081,http://127.0.0.1:8081,http://localhost:5173,http://127.0.0.1:5173`).
+- `FRONTEND_ORIGIN` - legacy single-origin CORS setting (still supported as fallback).
 - `RESEND_API_KEY` - API key for sending forgot-password emails via Resend (budget-friendly option with a free tier).
 - `RESEND_FROM_EMAIL` - verified sender email/domain configured in Resend.
