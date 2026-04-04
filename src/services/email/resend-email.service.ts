@@ -1,5 +1,6 @@
 import { env } from '../../config/env.js';
 import { logger } from '../../common/logger.js';
+import { Resend } from 'resend';
 
 type ForgotPasswordEmailParams = {
   to: string;
@@ -25,26 +26,18 @@ export const sendForgotPasswordEmail = async ({ to, name, resetLink }: ForgotPas
     return;
   }
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      from: env.RESEND_FROM_EMAIL,
-      to,
-      subject: 'Reset your MockQube password',
-      html: buildForgotPasswordHtml({ name, resetLink })
-    })
+  const resend = new Resend(env.RESEND_API_KEY);
+  const { error } = await resend.emails.send({
+    from: env.RESEND_FROM_EMAIL,
+    to,
+    subject: 'Reset your MockQube password',
+    html: buildForgotPasswordHtml({ name, resetLink })
   });
 
-  if (!response.ok) {
-    const errorBody = await response.text();
+  if (error) {
     logger.error('Failed to send forgot-password email with Resend.', {
-      status: response.status,
       to,
-      errorBody
+      error
     });
   }
 };
