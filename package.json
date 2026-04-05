@@ -13,6 +13,7 @@
     "test": "tsx --test test/**/*.test.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-polly": "^3.800.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

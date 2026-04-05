@@ -59,3 +59,21 @@ test('protected interview endpoints require auth (non-404 + 401)', async () => {
     assert.equal(response.body.code, 'UNAUTHORIZED');
   }
 });
+
+test('POST /api/tts returns validation error for invalid payload', async () => {
+  const app = await getApp();
+  const response = await request(app).post('/api/tts').send({ sessionId: '', text: '' });
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.code, 'VALIDATION_ERROR');
+});
+
+test('POST /api/tts returns provider error when AWS Polly is unconfigured', async () => {
+  const app = await getApp();
+  const response = await request(app)
+    .post('/api/tts')
+    .send({ sessionId: 'sess_123', text: 'Hello world', voiceProvider: 'aws-polly' });
+
+  assert.equal(response.status, 502);
+  assert.equal(response.body.code, 'AI_PROVIDER_ERROR');
+});
