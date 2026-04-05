@@ -6,7 +6,11 @@ import { CodeSubmissionModel } from '../../models/code-submission.model.js';
 import { FeedbackReportModel } from '../../models/feedback-report.model.js';
 import { InterviewMessageModel } from '../../models/interview-message.model.js';
 import { InterviewSessionModel } from '../../models/interview-session.model.js';
-import { generateEvaluationReport, generateInterviewerReply } from '../../services/openai/interviewer.service.js';
+import {
+  formatAiInterviewerMessage,
+  generateEvaluationReport,
+  generateInterviewerReply
+} from '../../services/openai/interviewer.service.js';
 import { aiRateLimit } from '../../middleware/rate-limit.js';
 import { createCodeSubmissionSchema, createMessageSchema, createSessionSchema, patchSessionSchema } from './interviews.schema.js';
 import { ensureKickoffMessageForSession, shouldGenerateKickoff } from './interview-kickoff.service.js';
@@ -188,7 +192,7 @@ router.post('/:id/messages', aiRateLimit, async (req, res) => {
   const aiMessage = await InterviewMessageModel.create({
     sessionId: session._id,
     speaker: 'ai',
-    text: `${aiReply.nextQuestion}\nHint: ${aiReply.followUpHint}`
+    text: formatAiInterviewerMessage(aiReply)
   });
 
   return res.status(201).json({

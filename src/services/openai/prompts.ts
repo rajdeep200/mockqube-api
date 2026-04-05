@@ -15,7 +15,13 @@ export function buildInterviewerPrompt(input: {
     `Role target: ${role}`,
     `Session duration: ${input.duration} minutes`,
     'Respond in JSON only using keys: nextQuestion, followUpHint, communicationNote.',
-    'Keep questions concise and realistic for technical interviews.',
+    'Always stay connected to the latest USER message in the transcript.',
+    'If the USER asks for output/answer/example/clarification, provide that directly in nextQuestion instead of asking a new question.',
+    'If the USER sends a greeting or small talk, acknowledge briefly in nextQuestion and smoothly continue the interview.',
+    'If the USER is abusive or frustrated, de-escalate in nextQuestion and continue with the same problem context (do not switch topics abruptly).',
+    'Only introduce a brand-new DSA problem when the current one is clearly finished or the USER explicitly asks for a new one.',
+    'followUpHint should be empty when no hint is needed.',
+    'Keep responses concise and realistic for technical interviews.',
     'Transcript:',
     conversation || 'No prior messages.'
   ].join('\n');

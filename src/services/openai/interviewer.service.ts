@@ -11,6 +11,14 @@ export interface AiInterviewerReply {
   communicationNote: string;
 }
 
+export function formatAiInterviewerMessage(reply: AiInterviewerReply): string {
+  const main = reply.nextQuestion?.trim() ?? '';
+  const hint = reply.followUpHint?.trim() ?? '';
+
+  if (!hint) return main;
+  return `${main}\nHint: ${hint}`;
+}
+
 export interface AiEvaluationReport {
   feedbackSummary: string;
   solutionOverview: string;
