@@ -1,7 +1,7 @@
 import { logger } from '../../common/logger.js';
 import { InterviewMessageModel } from '../../models/interview-message.model.js';
 import { InterviewSessionModel, type InterviewSessionDocument } from '../../models/interview-session.model.js';
-import { generateInterviewerReply } from '../../services/openai/interviewer.service.js';
+import { formatAiInterviewerMessage, generateInterviewerReply } from '../../services/openai/interviewer.service.js';
 
 export const kickoffMetrics = {
   success: 0,
@@ -42,7 +42,7 @@ export async function ensureKickoffMessageForSession(session: InterviewSessionDo
     const kickoffMessage = await InterviewMessageModel.create({
       sessionId: session._id,
       speaker: 'ai',
-      text: `${aiReply.nextQuestion}\nHint: ${aiReply.followUpHint}`,
+      text: formatAiInterviewerMessage(aiReply),
       isKickoff: true
     });
 

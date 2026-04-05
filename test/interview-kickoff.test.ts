@@ -14,6 +14,7 @@ import { InterviewMessageModel } from '../src/models/interview-message.model.js'
 import { InterviewSessionModel } from '../src/models/interview-session.model.js';
 import { ensureKickoffMessageForSession, shouldGenerateKickoff } from '../src/modules/interviews/interview-kickoff.service.js';
 import * as interviewerService from '../src/services/openai/interviewer.service.js';
+import { formatAiInterviewerMessage } from '../src/services/openai/interviewer.service.js';
 
 let appPromise: Promise<import('express').Express> | null = null;
 async function getApp() {
@@ -260,4 +261,14 @@ test('regression: POST user message flow still stores user and ai messages', asy
   assert.equal(messages.length, 2);
   assert.equal(messages[0].speaker, 'user');
   assert.equal(messages[1].speaker, 'ai');
+});
+
+test('unit: formatAiInterviewerMessage omits empty hint line', () => {
+  const text = formatAiInterviewerMessage({
+    nextQuestion: 'The output is 3.',
+    followUpHint: '   ',
+    communicationNote: 'good'
+  });
+
+  assert.equal(text, 'The output is 3.');
 });
