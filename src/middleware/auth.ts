@@ -22,6 +22,16 @@ export function signAccessToken(payload: JwtPayload): string {
 export function authRequired(req: Request, _res: Response, next: NextFunction): void {
   const bearer = req.headers.authorization;
   if (!bearer?.startsWith('Bearer ')) {
+    if (req.isAuthenticated?.() && req.user?.id && req.user?.email) {
+      (req as AuthenticatedRequest).user = {
+        sub: req.user.id,
+        email: req.user.email,
+        name: req.user.name
+      };
+      next();
+      return;
+    }
+
     throw new ApiError(401, 'UNAUTHORIZED', 'Missing bearer token.');
   }
 
