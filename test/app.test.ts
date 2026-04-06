@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { authRequired, type AuthenticatedRequest } from '../src/middleware/auth.js';
 
 process.env.NODE_ENV = process.env.NODE_ENV ?? 'test';
 process.env.MONGODB_URI = process.env.MONGODB_URI ?? 'mongodb://localhost:27017/mockqube-test';
@@ -58,6 +59,28 @@ test('protected interview endpoints require auth (non-404 + 401)', async () => {
     assert.equal(response.status, 401);
     assert.equal(response.body.code, 'UNAUTHORIZED');
   }
+});
+
+test('authRequired accepts passport session authentication when bearer token is missing', () => {
+  const req = {
+    headers: {},
+    isAuthenticated: () => true,
+    user: {
+      id: '507f1f77bcf86cd799439011',
+      email: 'session-user@example.com',
+      name: 'Session User'
+    }
+  } as unknown as AuthenticatedRequest;
+
+  let calledNext = false;
+  authRequired(req, {} as never, () => {
+    calledNext = true;
+  });
+
+  assert.equal(calledNext, true);
+  assert.equal(req.user?.sub, '507f1f77bcf86cd799439011');
+  assert.equal(req.user?.email, 'session-user@example.com');
+  assert.equal(req.user?.name, 'Session User');
 });
 
 test('POST /api/tts returns validation error for invalid payload', async () => {
