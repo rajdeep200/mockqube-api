@@ -7,9 +7,13 @@ const EnvSchema = z.object({
   MONGODB_URI: z.string().min(1),
   FRONTEND_ORIGIN: z.string().url().optional(),
   FRONTEND_ORIGINS: z.string().optional(),
+  CLIENT_URL: z.string().url().optional(),
   API_BASE_URL: z.string().url().default('http://localhost:3000'),
   JWT_SECRET: z.string().min(16),
   JWT_EXPIRES_IN: z.string().default('7d'),
+  SESSION_SECRET: z.string().min(16).optional(),
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
   OPENAI_API_KEY: z.string().min(1),
   OPENAI_MODEL: z.string().default('gpt-4.1-mini'),
   AWS_REGION: z.string().min(1).optional(),
@@ -22,17 +26,22 @@ const EnvSchema = z.object({
 
 const parsedEnv = EnvSchema.parse(process.env);
 
+const clientUrl = parsedEnv.CLIENT_URL ?? parsedEnv.FRONTEND_ORIGIN;
 const localDefaultOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:8081',
-  'http://127.0.0.1:8081'
+  'http://127.0.0.1:8081',
+  'http://localhost:5137',
+  'http://127.0.0.1:5137'
 ];
 const frontendOriginsRaw =
-  parsedEnv.FRONTEND_ORIGINS ?? parsedEnv.FRONTEND_ORIGIN ?? localDefaultOrigins.join(',');
+  parsedEnv.FRONTEND_ORIGINS ?? clientUrl ?? parsedEnv.FRONTEND_ORIGIN ?? localDefaultOrigins.join(',');
 
 export const env = {
   ...parsedEnv,
+  CLIENT_URL: clientUrl ?? 'http://localhost:5137',
+  SESSION_SECRET: parsedEnv.SESSION_SECRET ?? parsedEnv.JWT_SECRET,
   FRONTEND_ORIGINS: frontendOriginsRaw
     .split(',')
     .map((origin) => origin.trim())
