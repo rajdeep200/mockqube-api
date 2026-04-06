@@ -4,6 +4,7 @@ TypeScript + Express backend for the MockQube AI mock DSA interview platform.
 
 ## Features
 - JWT auth (`signup`, `login`, `forgot-password`, `reset-password`) with Resend email integration for forgot-password
+- Google OAuth login via Passport with server-side sessions in HTTP-only cookies
 - MongoDB/Mongoose models for users, sessions, messages, submissions, reports
 - AI interviewer integration with OpenAI for follow-up questions + report generation
 - Interview lifecycle APIs (create, list, update, messages, code submissions, report)
@@ -17,6 +18,10 @@ TypeScript + Express backend for the MockQube AI mock DSA interview platform.
 - `POST /v1/auth/login`
 - `POST /v1/auth/forgot-password`
 - `POST /v1/auth/reset-password`
+- `GET /auth/google`
+- `GET /auth/google/callback`
+- `GET /auth/me`
+- `POST /auth/logout`
 - `POST /v1/interview-sessions`
 - `GET /v1/interview-sessions`
 - `GET /v1/interview-sessions/:id`
@@ -132,3 +137,8 @@ npm run dev
 - `FRONTEND_ORIGIN` - legacy single-origin CORS setting (still supported as fallback).
 - `RESEND_API_KEY` - API key for sending forgot-password emails via Resend (budget-friendly option with a free tier).
 - `RESEND_FROM_EMAIL` - verified sender email/domain configured in Resend.
+
+- `CLIENT_URL` - frontend base URL used for OAuth success/failure redirects (default: `http://localhost:5137`).
+- `SESSION_SECRET` - secret used to sign Express session cookies (falls back to `JWT_SECRET` if omitted).
+- `GOOGLE_CLIENT_ID` - OAuth client ID from Google Cloud.
+- `GOOGLE_CLIENT_SECRET` - OAuth client secret from Google Cloud.

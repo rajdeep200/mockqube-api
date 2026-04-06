@@ -27,7 +27,10 @@
     "resend": "^6.1.2",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "express-session": "^1.18.1",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -41,6 +44,9 @@
     "@types/swagger-ui-express": "^4.1.6",
     "supertest": "^7.1.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "@types/express-session": "^1.18.1",
+    "@types/passport": "^1.0.17",
+    "@types/passport-google-oauth20": "^2.0.16"
   }
 }
