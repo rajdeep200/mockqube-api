@@ -13,6 +13,7 @@ import { authRouter } from './modules/auth/auth.routes.js';
 import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { interviewsRouter } from './modules/interviews/interviews.routes.js';
 import { ttsRouter } from './modules/tts/tts.routes.js';
+import { contactRouter } from './modules/contact/contact.routes.js';
 import { swaggerSpec } from './swagger/openapi.js';
 
 const app = express();
@@ -68,6 +69,7 @@ app.use('/v1/auth', authRouter);
 app.use('/auth', authRouter);
 app.use('/v1/interview-sessions', interviewsRouter);
 app.use('/v1/dashboard', dashboardRouter);
+app.use('/v1/contact', contactRouter);
 app.use('/api/tts', ttsRouter);
 
 app.use(notFoundHandler);

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import request from 'supertest';
 import { authRequired, type AuthenticatedRequest } from '../src/middleware/auth.js';
 
+import { ContactMessageModel } from '../src/models/contact-message.model.js';
+
 process.env.NODE_ENV = process.env.NODE_ENV ?? 'test';
 process.env.MONGODB_URI = process.env.MONGODB_URI ?? 'mongodb://localhost:27017/mockqube-test';
 process.env.FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173';
@@ -99,4 +101,49 @@ test('POST /api/tts returns provider error when AWS Polly is unconfigured', asyn
 
   assert.equal(response.status, 502);
   assert.equal(response.body.code, 'AI_PROVIDER_ERROR');
+});
+
+
+test('contact endpoint returns validation payload for invalid body', async () => {
+  const app = await getApp();
+  const response = await request(app).post('/v1/contact/messages').send({ name: 'A', email: 'bad', message: 'short' });
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.code, 'VALIDATION_ERROR');
+  assert.equal(response.body.message, 'Invalid request payload');
+  assert.ok(response.body.details.name);
+  assert.ok(response.body.details.email);
+  assert.ok(response.body.details.message);
+});
+
+test('contact endpoint stores message and returns expected success payload', async () => {
+  const app = await getApp();
+
+  const originalCountDocuments = ContactMessageModel.countDocuments;
+  const originalFindOne = ContactMessageModel.findOne;
+  const originalCreate = ContactMessageModel.create;
+
+  ContactMessageModel.countDocuments = async () => 0 as never;
+  ContactMessageModel.findOne = (() => ({
+    select: async () => null
+  })) as never;
+  ContactMessageModel.create = async () => ({ _id: '507f1f77bcf86cd799439011', createdAt: new Date() }) as never;
+
+  try {
+    const response = await request(app).post('/v1/contact/messages').send({
+      name: 'Jane Doe',
+      email: 'jane@example.com',
+      message: 'I would like to know more about MockQube enterprise pricing.'
+    });
+
+    assert.equal(response.status, 201);
+    assert.deepEqual(response.body, {
+      success: true,
+      message: 'Your message has been received'
+    });
+  } finally {
+    ContactMessageModel.countDocuments = originalCountDocuments;
+    ContactMessageModel.findOne = originalFindOne;
+    ContactMessageModel.create = originalCreate;
+  }
 });

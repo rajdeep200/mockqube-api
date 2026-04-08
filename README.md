@@ -10,6 +10,7 @@ TypeScript + Express backend for the MockQube AI mock DSA interview platform.
 - Interview lifecycle APIs (create, list, update, messages, code submissions, report)
 - Dashboard summary endpoint
 - Global + AI endpoint rate limiting
+- Public Contact Us endpoint with validation, anti-abuse guards, persistence, and async support notifications
 - Swagger docs at `/docs`
 - Centralized error handling with consistent JSON shape
 
@@ -31,6 +32,7 @@ TypeScript + Express backend for the MockQube AI mock DSA interview platform.
 - `POST /v1/interview-sessions/:id/code-submissions`
 - `GET /v1/interview-sessions/:id/report`
 - `GET /v1/dashboard/summary`
+- `POST /v1/contact/messages`
 - `GET /health`
 
 ## Error format
@@ -108,6 +110,37 @@ Interview Sessions (requires `Authorization: Bearer <JWT>`)
 }
 ```
 
+
+Contact Us
+
+- POST /v1/contact/messages:
+```json
+{
+	"name": "Jane Doe",
+	"email": "jane@example.com",
+	"message": "I would like to know more about your enterprise offering."
+}
+```
+
+Success response (201):
+```json
+{
+	"success": true,
+	"message": "Your message has been received"
+}
+```
+
+Validation error response (400):
+```json
+{
+	"code": "VALIDATION_ERROR",
+	"message": "Invalid request payload",
+	"details": {
+		"email": ["Email must be valid."]
+	}
+}
+```
+
 Query params / no-body requests
 
 - GET /v1/interview-sessions: supports `page`, `pageSize`, `status`
@@ -137,8 +170,15 @@ npm run dev
 - `FRONTEND_ORIGIN` - legacy single-origin CORS setting (still supported as fallback).
 - `RESEND_API_KEY` - API key for sending forgot-password emails via Resend (budget-friendly option with a free tier).
 - `RESEND_FROM_EMAIL` - verified sender email/domain configured in Resend.
+- `SUPPORT_EMAIL` - destination address for contact notifications (default: `support@mockqube.com`).
+- `CONTACT_RATE_LIMIT_PER_IP` - max contact form submissions per IP per minute (default: `5`).
+- `CONTACT_RATE_LIMIT_PER_EMAIL` - max contact form submissions per email per minute (default: `3`).
 
 - `CLIENT_URL` - frontend base URL used for OAuth success/failure redirects (default: `http://localhost:5137`).
 - `SESSION_SECRET` - secret used to sign Express session cookies (falls back to `JWT_SECRET` if omitted).
 - `GOOGLE_CLIENT_ID` - OAuth client ID from Google Cloud.
 - `GOOGLE_CLIENT_SECRET` - OAuth client secret from Google Cloud.
+
+## Migration notes
+- Contact messages are persisted to MongoDB in the `contactmessages` collection via Mongoose.
+- Indexes are declared for `createdAt`, `{ email, createdAt }`, and `{ ip, createdAt }` in `ContactMessageModel`; ensure indexes are applied in your deployment workflow (e.g. startup sync/index creation policy).
