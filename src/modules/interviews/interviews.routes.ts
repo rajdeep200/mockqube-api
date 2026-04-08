@@ -6,6 +6,7 @@ import { CodeSubmissionModel } from '../../models/code-submission.model.js';
 import { FeedbackReportModel } from '../../models/feedback-report.model.js';
 import { InterviewMessageModel } from '../../models/interview-message.model.js';
 import { InterviewSessionModel } from '../../models/interview-session.model.js';
+import { UserModel } from '../../models/user.model.js';
 import {
   formatAiInterviewerMessage,
   generateEvaluationReport,
@@ -14,6 +15,15 @@ import {
 import { aiRateLimit } from '../../middleware/rate-limit.js';
 import { createCodeSubmissionSchema, createMessageSchema, createSessionSchema, patchSessionSchema } from './interviews.schema.js';
 import { ensureKickoffMessageForSession, shouldGenerateKickoff } from './interview-kickoff.service.js';
+import {
+  canCreateInterview,
+  isModeAllowed,
+  isReportVisibleToPlan,
+  isTrackAllowed,
+  resolveEntitlements,
+  shapeReportByPlan
+} from '../../services/subscription/entitlement.service.js';
+import { DEFAULT_INTERVIEW_MODE } from '../../config/subscription-plans.js';
 
 const router = Router();
 router.use(authRequired);
@@ -37,18 +47,41 @@ async function getOwnedSession(req: AuthenticatedRequest, id?: string) {
   return session;
 }
 
-/**
- * @openapi
- * /v1/interview-sessions:
- *   post:
- *     tags: [Interview Sessions]
- *     security: [{ bearerAuth: [] }]
- *     summary: Create interview session
- */
+async function getCurrentUser(req: AuthenticatedRequest) {
+  const user = await UserModel.findById(req.user!.sub).select({
+    subscriptionPlan: 1,
+    subscriptionStatus: 1,
+    primaryDsaTrack: 1,
+    featureFlags: 1
+  });
+  if (!user) throw new ApiError(404, 'NOT_FOUND', 'User not found.');
+  return user;
+}
+
 router.post('/', async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const payload = createSessionSchema.parse(req.body);
   const userId = authReq.user!.sub;
+  const user = await getCurrentUser(authReq);
+
+  const creation = await canCreateInterview(user);
+  if (!creation.allowed) {
+    if (creation.reason === 'SUBSCRIPTION_INACTIVE') {
+      throw new ApiError(403, 'SUBSCRIPTION_INACTIVE', 'Your subscription is not active.');
+    }
+    throw new ApiError(403, 'PLAN_LIMIT_REACHED', 'Monthly interview quota reached for your plan.', {
+      monthlyUsage: creation.usage,
+      monthlyLimit: creation.limit
+    });
+  }
+
+  if (!isTrackAllowed(user, payload.track)) {
+    throw new ApiError(403, 'TRACK_NOT_ALLOWED', 'Requested track is not allowed for your plan.');
+  }
+
+  if (!isModeAllowed(user, payload.mode)) {
+    throw new ApiError(403, 'MODE_NOT_ALLOWED', 'Requested interview mode is not allowed for your plan.');
+  }
 
   const session = await InterviewSessionModel.create({
     userId,
@@ -56,6 +89,8 @@ router.post('/', async (req, res) => {
     difficulty: payload.difficulty,
     duration: payload.duration,
     role: payload.role ?? null,
+    track: payload.track ?? null,
+    mode: payload.mode ?? DEFAULT_INTERVIEW_MODE,
     status: 'created'
   });
 
@@ -66,20 +101,14 @@ router.post('/', async (req, res) => {
     difficulty: session.difficulty,
     duration: session.duration,
     role: session.role,
+    track: session.track,
+    mode: session.mode,
     status: session.status,
     createdAt: session.createdAt.toISOString(),
     updatedAt: session.updatedAt.toISOString()
   });
 });
 
-/**
- * @openapi
- * /v1/interview-sessions:
- *   get:
- *     tags: [Interview Sessions]
- *     security: [{ bearerAuth: [] }]
- *     summary: List interview sessions
- */
 router.get('/', async (req, res) => {
   const userId = (req as AuthenticatedRequest).user!.sub;
   const { page, pageSize } = parsePaging({ page: req.query.page, pageSize: req.query.pageSize });
@@ -101,6 +130,8 @@ router.get('/', async (req, res) => {
       difficulty: s.difficulty,
       duration: s.duration,
       role: s.role,
+      track: s.track,
+      mode: s.mode,
       status: s.status,
       createdAt: s.createdAt.toISOString(),
       updatedAt: s.updatedAt.toISOString()
@@ -114,14 +145,26 @@ router.get('/', async (req, res) => {
   });
 });
 
-/**
- * @openapi
- * /v1/interview-sessions/{id}:
- *   get:
- *     tags: [Interview Sessions]
- *     security: [{ bearerAuth: [] }]
- *     summary: Get interview session detail
- */
+router.get('/reports', async (req, res) => {
+  const authReq = req as AuthenticatedRequest;
+  const user = await getCurrentUser(authReq);
+  const entitlements = resolveEntitlements(user);
+
+  const sessions = await InterviewSessionModel.find({ userId: authReq.user!.sub }).select({ _id: 1 }).sort({ createdAt: -1 });
+  const sessionIds = sessions.map((s) => s._id);
+
+  let query = FeedbackReportModel.find({ sessionId: { $in: sessionIds } }).sort({ createdAt: -1 });
+  if (entitlements.maxVisibleReports !== null) {
+    query = query.limit(entitlements.maxVisibleReports);
+  }
+
+  const reports = await query;
+
+  return res.status(200).json({
+    data: reports.map((report) => shapeReportByPlan(user, report.toObject()))
+  });
+});
+
 router.get('/:id', async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const session = await getOwnedSession(authReq, req.params.id);
@@ -129,14 +172,6 @@ router.get('/:id', async (req, res) => {
   return res.status(200).json(session);
 });
 
-/**
- * @openapi
- * /v1/interview-sessions/{id}:
- *   patch:
- *     tags: [Interview Sessions]
- *     security: [{ bearerAuth: [] }]
- *     summary: Update interview session status
- */
 router.patch('/:id', async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const payload = patchSessionSchema.parse(req.body);
@@ -162,14 +197,6 @@ router.patch('/:id', async (req, res) => {
   return res.status(200).json(session);
 });
 
-/**
- * @openapi
- * /v1/interview-sessions/{id}/messages:
- *   post:
- *     tags: [Interview Messages]
- *     security: [{ bearerAuth: [] }]
- *     summary: Post user message and get AI follow-up
- */
 router.post('/:id/messages', aiRateLimit, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const payload = createMessageSchema.parse(req.body);
@@ -202,14 +229,6 @@ router.post('/:id/messages', aiRateLimit, async (req, res) => {
   });
 });
 
-/**
- * @openapi
- * /v1/interview-sessions/{id}/messages:
- *   get:
- *     tags: [Interview Messages]
- *     security: [{ bearerAuth: [] }]
- *     summary: List messages for a session
- */
 router.get('/:id/messages', async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   let session = await getOwnedSession(authReq, req.params.id);
@@ -232,14 +251,6 @@ router.get('/:id/messages', async (req, res) => {
   return res.status(200).json({ data: messages });
 });
 
-/**
- * @openapi
- * /v1/interview-sessions/{id}/code-submissions:
- *   post:
- *     tags: [Code Submissions]
- *     security: [{ bearerAuth: [] }]
- *     summary: Submit code for a session
- */
 router.post('/:id/code-submissions', async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const payload = createCodeSubmissionSchema.parse(req.body);
@@ -255,17 +266,10 @@ router.post('/:id/code-submissions', async (req, res) => {
   return res.status(201).json(submission);
 });
 
-/**
- * @openapi
- * /v1/interview-sessions/{id}/report:
- *   get:
- *     tags: [Reports]
- *     security: [{ bearerAuth: [] }]
- *     summary: Get or generate interview feedback report
- */
 router.get('/:id/report', aiRateLimit, async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const session = await getOwnedSession(authReq, req.params.id);
+  const user = await getCurrentUser(authReq);
 
   let report = await FeedbackReportModel.findOne({ sessionId: session._id });
   if (!report) {
@@ -286,7 +290,12 @@ router.get('/:id/report', aiRateLimit, async (req, res) => {
     });
   }
 
-  return res.status(200).json(report);
+  const visible = await isReportVisibleToPlan(user, report.createdAt);
+  if (!visible) {
+    throw new ApiError(403, 'PLAN_RESTRICTED_REPORT_HISTORY', 'Report is outside your plan report history window.');
+  }
+
+  return res.status(200).json(shapeReportByPlan(user, report.toObject()));
 });
 
 export const interviewsRouter = router;

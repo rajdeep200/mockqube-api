@@ -14,6 +14,8 @@ import { dashboardRouter } from './modules/dashboard/dashboard.routes.js';
 import { interviewsRouter } from './modules/interviews/interviews.routes.js';
 import { ttsRouter } from './modules/tts/tts.routes.js';
 import { contactRouter } from './modules/contact/contact.routes.js';
+import { subscriptionRouter } from './modules/subscription/subscription.routes.js';
+import { performanceRouter } from './modules/performance/performance.routes.js';
 import { swaggerSpec } from './swagger/openapi.js';
 
 const app = express();
@@ -70,6 +72,8 @@ app.use('/auth', authRouter);
 app.use('/v1/interview-sessions', interviewsRouter);
 app.use('/v1/dashboard', dashboardRouter);
 app.use('/v1/contact', contactRouter);
+app.use('/v1/subscription', subscriptionRouter);
+app.use('/v1/performance', performanceRouter);
 app.use('/api/tts', ttsRouter);
 
 app.use(notFoundHandler);

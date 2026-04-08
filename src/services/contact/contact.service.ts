@@ -3,8 +3,10 @@ import { ApiError } from '../../common/api-error.js';
 import { logger } from '../../common/logger.js';
 import { env } from '../../config/env.js';
 import { ContactMessageModel } from '../../models/contact-message.model.js';
+import { UserModel } from '../../models/user.model.js';
 import { sendContactSupportNotification } from '../email/resend-email.service.js';
 import type { CreateContactMessageInput } from '../../modules/contact/contact.schema.js';
+import { resolveEntitlements } from '../subscription/entitlement.service.js';
 
 const RECENT_DUPLICATE_WINDOW_MS = 2 * 60 * 1000;
 const URL_PATTERN = /(https?:\/\/|www\.)/i;
@@ -55,18 +57,35 @@ export async function enforceSpamGuards(payload: CreateContactMessageInput, meta
 export async function createContactMessage(payload: CreateContactMessageInput, meta: CreateContactMessageMeta): Promise<void> {
   await enforceSpamGuards(payload, meta);
 
+  const matchedUser = await UserModel.findOne({ email: payload.email.toLowerCase() }).select({
+    subscriptionPlan: 1,
+    subscriptionStatus: 1,
+    primaryDsaTrack: 1
+  });
+  const sourcePlan = matchedUser?.subscriptionPlan ?? 'basic';
+  const supportTier = resolveEntitlements({
+    _id: matchedUser?._id ?? '000000000000000000000000',
+    subscriptionPlan: sourcePlan,
+    subscriptionStatus: matchedUser?.subscriptionStatus,
+    primaryDsaTrack: matchedUser?.primaryDsaTrack
+  }).supportTier;
+
   const savedMessage = await ContactMessageModel.create({
     name: payload.name,
     email: payload.email.toLowerCase(),
     message: payload.message,
     ip: meta.ip ?? null,
-    userAgent: meta.userAgent ?? null
+    userAgent: meta.userAgent ?? null,
+    sourcePlan,
+    supportTier
   });
 
   sendContactSupportNotification({
     to: env.SUPPORT_EMAIL,
     submitterName: payload.name,
     submitterEmail: payload.email,
+    sourcePlan,
+    supportTier,
     message: payload.message,
     submittedAt: savedMessage.createdAt,
     ip: meta.ip,

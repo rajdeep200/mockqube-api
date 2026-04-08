@@ -11,6 +11,8 @@ type ContactSupportNotificationParams = {
   to: string;
   submitterName: string;
   submitterEmail: string;
+  sourcePlan: 'basic' | 'pro' | 'premium';
+  supportTier: 'standard' | 'priority' | 'fastest';
   message: string;
   submittedAt: Date;
   ip?: string | undefined;
@@ -32,6 +34,8 @@ const buildForgotPasswordHtml = ({ name, resetLink }: Omit<ForgotPasswordEmailPa
 const buildContactSupportHtml = ({
   submitterName,
   submitterEmail,
+  sourcePlan,
+  supportTier,
   message,
   submittedAt,
   ip,
@@ -41,6 +45,8 @@ const buildContactSupportHtml = ({
     <h2>New Contact Us submission</h2>
     <p><strong>Name:</strong> ${submitterName}</p>
     <p><strong>Email:</strong> ${submitterEmail}</p>
+    <p><strong>Plan:</strong> ${sourcePlan}</p>
+    <p><strong>Support tier:</strong> ${supportTier}</p>
     <p><strong>Submitted at:</strong> ${submittedAt.toISOString()}</p>
     <p><strong>IP:</strong> ${ip ?? 'n/a'}</p>
     <p><strong>User-Agent:</strong> ${userAgent ?? 'n/a'}</p>
@@ -76,6 +82,8 @@ export const sendContactSupportNotification = async ({
   to,
   submitterName,
   submitterEmail,
+  sourcePlan,
+  supportTier,
   message,
   submittedAt,
   ip,
@@ -91,8 +99,8 @@ export const sendContactSupportNotification = async ({
   const { error } = await resend.emails.send({
     from: env.RESEND_FROM_EMAIL,
     to,
-    subject: `New contact message from ${submitterName}`,
-    html: buildContactSupportHtml({ submitterName, submitterEmail, message, submittedAt, ip, userAgent })
+    subject: `[${supportTier.toUpperCase()}] New contact message from ${submitterName}`,
+    html: buildContactSupportHtml({ submitterName, submitterEmail, sourcePlan, supportTier, message, submittedAt, ip, userAgent })
   });
 
   if (error) {
