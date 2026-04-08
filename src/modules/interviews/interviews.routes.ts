@@ -151,8 +151,9 @@ router.get('/reports', asyncHandler(async (req, res) => {
   const user = await getCurrentUser(authReq);
   const entitlements = resolveEntitlements(user);
 
-  const sessions = await InterviewSessionModel.find({ userId: authReq.user!.sub }).select({ _id: 1 }).sort({ createdAt: -1 });
+  const sessions = await InterviewSessionModel.find({ userId: authReq.user!.sub }).select({ _id: 1, company: 1 }).sort({ createdAt: -1 });
   const sessionIds = sessions.map((s) => s._id);
+  const sessionCompanyById = new Map(sessions.map((s) => [String(s._id), s.company]));
 
   let query = FeedbackReportModel.find({ sessionId: { $in: sessionIds } }).sort({ createdAt: -1 });
   if (entitlements.maxVisibleReports !== null) {
@@ -162,7 +163,10 @@ router.get('/reports', asyncHandler(async (req, res) => {
   const reports = await query;
 
   return res.status(200).json({
-    data: reports.map((report) => shapeReportByPlan(user, report.toObject()))
+    data: reports.map((report) => ({
+      ...shapeReportByPlan(user, report.toObject()),
+      company: sessionCompanyById.get(String(report.sessionId)) ?? null
+    }))
   });
 }));
 
@@ -296,7 +300,10 @@ router.get('/:id/report', aiRateLimit, asyncHandler(async (req, res) => {
     throw new ApiError(403, 'PLAN_RESTRICTED_REPORT_HISTORY', 'Report is outside your plan report history window.');
   }
 
-  return res.status(200).json(shapeReportByPlan(user, report.toObject()));
+  return res.status(200).json({
+    ...shapeReportByPlan(user, report.toObject()),
+    company: session.company
+  });
 }));
 
 export const interviewsRouter = router;
