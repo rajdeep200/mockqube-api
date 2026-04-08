@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { ApiError } from '../../common/api-error.js';
+import { asyncHandler } from '../../middleware/async-handler.js';
 import { authRequired, type AuthenticatedRequest } from '../../middleware/auth.js';
 import { UserModel } from '../../models/user.model.js';
 import { canCreateInterview, getMonthlyInterviewUsage, resolveEntitlements } from '../../services/subscription/entitlement.service.js';
@@ -7,7 +8,7 @@ import { canCreateInterview, getMonthlyInterviewUsage, resolveEntitlements } fro
 const router = Router();
 router.use(authRequired);
 
-router.get('/me', async (req, res) => {
+router.get('/me', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const user = await UserModel.findById(authReq.user!.sub).select({
     subscriptionPlan: 1,
@@ -38,6 +39,6 @@ router.get('/me', async (req, res) => {
     canCreateInterview: entitlementState.allowed,
     entitlements
   });
-});
+}));
 
 export const subscriptionRouter = router;

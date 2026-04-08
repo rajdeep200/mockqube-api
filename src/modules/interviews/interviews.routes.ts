@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Types } from 'mongoose';
 import { ApiError } from '../../common/api-error.js';
+import { asyncHandler } from '../../middleware/async-handler.js';
 import { authRequired, type AuthenticatedRequest } from '../../middleware/auth.js';
 import { CodeSubmissionModel } from '../../models/code-submission.model.js';
 import { FeedbackReportModel } from '../../models/feedback-report.model.js';
@@ -58,7 +59,7 @@ async function getCurrentUser(req: AuthenticatedRequest) {
   return user;
 }
 
-router.post('/', async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const payload = createSessionSchema.parse(req.body);
   const userId = authReq.user!.sub;
@@ -107,9 +108,9 @@ router.post('/', async (req, res) => {
     createdAt: session.createdAt.toISOString(),
     updatedAt: session.updatedAt.toISOString()
   });
-});
+}));
 
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   const userId = (req as AuthenticatedRequest).user!.sub;
   const { page, pageSize } = parsePaging({ page: req.query.page, pageSize: req.query.pageSize });
   const status = typeof req.query.status === 'string' ? req.query.status : undefined;
@@ -143,9 +144,9 @@ router.get('/', async (req, res) => {
       totalPages: Math.ceil(total / pageSize)
     }
   });
-});
+}));
 
-router.get('/reports', async (req, res) => {
+router.get('/reports', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const user = await getCurrentUser(authReq);
   const entitlements = resolveEntitlements(user);
@@ -163,16 +164,16 @@ router.get('/reports', async (req, res) => {
   return res.status(200).json({
     data: reports.map((report) => shapeReportByPlan(user, report.toObject()))
   });
-});
+}));
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const session = await getOwnedSession(authReq, req.params.id);
 
   return res.status(200).json(session);
-});
+}));
 
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const payload = patchSessionSchema.parse(req.body);
   if (!Types.ObjectId.isValid(req.params.id)) {
@@ -195,9 +196,9 @@ router.patch('/:id', async (req, res) => {
   }
 
   return res.status(200).json(session);
-});
+}));
 
-router.post('/:id/messages', aiRateLimit, async (req, res) => {
+router.post('/:id/messages', aiRateLimit, asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const payload = createMessageSchema.parse(req.body);
 
@@ -227,9 +228,9 @@ router.post('/:id/messages', aiRateLimit, async (req, res) => {
     aiMessage,
     meta: { communicationNote: aiReply.communicationNote }
   });
-});
+}));
 
-router.get('/:id/messages', async (req, res) => {
+router.get('/:id/messages', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   let session = await getOwnedSession(authReq, req.params.id);
 
@@ -249,9 +250,9 @@ router.get('/:id/messages', async (req, res) => {
 
   const messages = await InterviewMessageModel.find({ sessionId: session._id }).sort({ createdAt: 1 });
   return res.status(200).json({ data: messages });
-});
+}));
 
-router.post('/:id/code-submissions', async (req, res) => {
+router.post('/:id/code-submissions', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const payload = createCodeSubmissionSchema.parse(req.body);
   const session = await getOwnedSession(authReq, req.params.id);
@@ -264,9 +265,9 @@ router.post('/:id/code-submissions', async (req, res) => {
   });
 
   return res.status(201).json(submission);
-});
+}));
 
-router.get('/:id/report', aiRateLimit, async (req, res) => {
+router.get('/:id/report', aiRateLimit, asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const session = await getOwnedSession(authReq, req.params.id);
   const user = await getCurrentUser(authReq);
@@ -296,6 +297,6 @@ router.get('/:id/report', aiRateLimit, async (req, res) => {
   }
 
   return res.status(200).json(shapeReportByPlan(user, report.toObject()));
-});
+}));
 
 export const interviewsRouter = router;

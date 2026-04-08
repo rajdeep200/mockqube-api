@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { Types } from 'mongoose';
 import { ApiError } from '../../common/api-error.js';
+import { asyncHandler } from '../../middleware/async-handler.js';
 import { authRequired, type AuthenticatedRequest } from '../../middleware/auth.js';
 import { FeedbackReportModel } from '../../models/feedback-report.model.js';
 import { InterviewSessionModel } from '../../models/interview-session.model.js';
@@ -10,7 +11,7 @@ import { resolveEntitlements } from '../../services/subscription/entitlement.ser
 const router = Router();
 router.use(authRequired);
 
-router.get('/me', async (req, res) => {
+router.get('/me', asyncHandler(async (req, res) => {
   const authReq = req as AuthenticatedRequest;
   const user = await UserModel.findById(authReq.user!.sub).select({ subscriptionPlan: 1, subscriptionStatus: 1, primaryDsaTrack: 1 });
   if (!user) throw new ApiError(404, 'NOT_FOUND', 'User not found.');
@@ -86,6 +87,6 @@ router.get('/me', async (req, res) => {
       mode: s.mode
     }))
   });
-});
+}));
 
 export const performanceRouter = router;
