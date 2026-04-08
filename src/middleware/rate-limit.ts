@@ -1,4 +1,4 @@
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import rateLimit from 'express-rate-limit';
 import { env } from '../config/env.js';
 
 const defaultRateLimitMessage = {
@@ -42,7 +42,7 @@ export const contactEmailRateLimit = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-    return email || ipKeyGenerator(req.ip || '');
+    return email || req.ip || req.socket.remoteAddress || 'unknown';
   },
   message: defaultRateLimitMessage
 });
