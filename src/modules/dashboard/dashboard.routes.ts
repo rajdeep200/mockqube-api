@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { asyncHandler } from '../../middleware/async-handler.js';
 import { authRequired, type AuthenticatedRequest } from '../../middleware/auth.js';
 import { FeedbackReportModel } from '../../models/feedback-report.model.js';
 import { InterviewSessionModel } from '../../models/interview-session.model.js';
@@ -14,7 +15,7 @@ router.use(authRequired);
  *     security: [{ bearerAuth: [] }]
  *     summary: Aggregate dashboard metrics for current user
  */
-router.get('/summary', async (req, res) => {
+router.get('/summary', asyncHandler(async (req, res) => {
   const userId = (req as AuthenticatedRequest).user!.sub;
 
   const sessions = await InterviewSessionModel.find({ userId }).sort({ createdAt: -1 });
@@ -39,6 +40,6 @@ router.get('/summary', async (req, res) => {
     averageScore: scoreCount ? Math.round(scoreSum / scoreCount) : 0,
     recentSessions: sessions.slice(0, 5)
   });
-});
+}));
 
 export const dashboardRouter = router;

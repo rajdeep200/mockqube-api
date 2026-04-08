@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
 import passport from 'passport';
 import { ApiError } from '../../common/api-error.js';
+import { asyncHandler } from '../../middleware/async-handler.js';
 import { env } from '../../config/env.js';
 import { isGoogleOAuthConfigured } from '../../config/passport.js';
 import { signAccessToken } from '../../middleware/auth.js';
@@ -38,7 +39,7 @@ function formatUserResponse(user: {
  *     tags: [Auth]
  *     summary: Register a user and return access token
  */
-router.post('/signup', async (req, res) => {
+router.post('/signup', asyncHandler(async (req, res) => {
   const payload = signupSchema.parse(req.body);
   const email = payload.email.toLowerCase();
 
@@ -60,7 +61,7 @@ router.post('/signup', async (req, res) => {
     user: formatUserResponse(user),
     accessToken
   });
-});
+}));
 
 /**
  * @openapi
@@ -69,7 +70,7 @@ router.post('/signup', async (req, res) => {
  *     tags: [Auth]
  *     summary: Login user and return access token
  */
-router.post('/login', async (req, res) => {
+router.post('/login', asyncHandler(async (req, res) => {
   const payload = loginSchema.parse(req.body);
   const email = payload.email.toLowerCase();
 
@@ -89,7 +90,7 @@ router.post('/login', async (req, res) => {
     user: formatUserResponse(user),
     accessToken
   });
-});
+}));
 
 router.get('/google', (req, res, next) => {
   if (!isGoogleOAuthConfigured()) {
@@ -148,7 +149,7 @@ router.post('/logout', (req, res, next) => {
  *     tags: [Auth]
  *     summary: Start password reset flow
  */
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', asyncHandler(async (req, res) => {
   const payload = forgotPasswordSchema.parse(req.body);
   const email = payload.email.toLowerCase();
 
@@ -174,7 +175,7 @@ router.post('/forgot-password', async (req, res) => {
     success: true,
     message: 'If account exists, password reset flow was initiated.'
   });
-});
+}));
 
 /**
  * @openapi
@@ -183,7 +184,7 @@ router.post('/forgot-password', async (req, res) => {
  *     tags: [Auth]
  *     summary: Reset password using one-time token
  */
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', asyncHandler(async (req, res) => {
   const payload = resetPasswordSchema.parse(req.body);
   const tokenHash = crypto.createHash('sha256').update(payload.token).digest('hex');
   const resetToken = await PasswordResetTokenModel.findOne({
@@ -205,6 +206,6 @@ router.post('/reset-password', async (req, res) => {
   await Promise.all([user.save(), resetToken.save()]);
 
   return res.status(200).json({ success: true });
-});
+}));
 
 export const authRouter = router;
