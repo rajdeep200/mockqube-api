@@ -21,7 +21,10 @@ const EnvSchema = z.object({
   AWS_SECRET_ACCESS_KEY: z.string().min(1).optional(),
   AWS_POLLY_VOICE_ID: z.string().min(1).optional(),
   RESEND_API_KEY: z.string().min(1).optional(),
-  RESEND_FROM_EMAIL: z.string().email().default('onboarding@resend.dev')
+  RESEND_FROM_EMAIL: z.string().email().default('onboarding@resend.dev'),
+  SUPPORT_EMAIL: z.string().email().default('support@mockqube.com'),
+  CONTACT_RATE_LIMIT_PER_IP: z.coerce.number().int().positive().default(5),
+  CONTACT_RATE_LIMIT_PER_EMAIL: z.coerce.number().int().positive().default(3)
 });
 
 const parsedEnv = EnvSchema.parse(process.env);

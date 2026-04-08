@@ -15,7 +15,7 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   if (err instanceof ZodError) {
     return res.status(400).json({
       code: 'VALIDATION_ERROR',
-      message: 'Request validation failed.',
+      message: 'Invalid request payload',
       details: err.flatten()
     });
   }
@@ -36,7 +36,7 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
 
   return res.status(500).json({
     code: 'INTERNAL_SERVER_ERROR',
-    message: 'Unexpected server error.',
+    message: 'Something went wrong',
     details: {}
   });
 }

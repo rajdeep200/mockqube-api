@@ -7,6 +7,16 @@ type ForgotPasswordEmailParams = {
   resetLink: string;
 };
 
+type ContactSupportNotificationParams = {
+  to: string;
+  submitterName: string;
+  submitterEmail: string;
+  message: string;
+  submittedAt: Date;
+  ip?: string | undefined;
+  userAgent?: string | undefined;
+};
+
 const buildForgotPasswordHtml = ({ name, resetLink }: Omit<ForgotPasswordEmailParams, 'to'>): string => `
   <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827;">
     <h2>Reset your MockQube password</h2>
@@ -16,6 +26,26 @@ const buildForgotPasswordHtml = ({ name, resetLink }: Omit<ForgotPasswordEmailPa
       <a href="${resetLink}" style="display:inline-block;background:#2563eb;color:#ffffff;padding:10px 16px;border-radius:6px;text-decoration:none;">Reset password</a>
     </p>
     <p>If you did not request this, you can safely ignore this email.</p>
+  </div>
+`;
+
+const buildContactSupportHtml = ({
+  submitterName,
+  submitterEmail,
+  message,
+  submittedAt,
+  ip,
+  userAgent
+}: Omit<ContactSupportNotificationParams, 'to'>): string => `
+  <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827;">
+    <h2>New Contact Us submission</h2>
+    <p><strong>Name:</strong> ${submitterName}</p>
+    <p><strong>Email:</strong> ${submitterEmail}</p>
+    <p><strong>Submitted at:</strong> ${submittedAt.toISOString()}</p>
+    <p><strong>IP:</strong> ${ip ?? 'n/a'}</p>
+    <p><strong>User-Agent:</strong> ${userAgent ?? 'n/a'}</p>
+    <hr />
+    <p style="white-space:pre-wrap;">${message}</p>
   </div>
 `;
 
@@ -39,5 +69,33 @@ export const sendForgotPasswordEmail = async ({ to, name, resetLink }: ForgotPas
       to,
       error
     });
+  }
+};
+
+export const sendContactSupportNotification = async ({
+  to,
+  submitterName,
+  submitterEmail,
+  message,
+  submittedAt,
+  ip,
+  userAgent
+}: ContactSupportNotificationParams): Promise<void> => {
+  if (!env.RESEND_API_KEY) {
+    logger.info('Resend is not configured; skipping contact support notification send.');
+    return;
+  }
+
+  const { Resend } = await import('resend');
+  const resend = new Resend(env.RESEND_API_KEY);
+  const { error } = await resend.emails.send({
+    from: env.RESEND_FROM_EMAIL,
+    to,
+    subject: `New contact message from ${submitterName}`,
+    html: buildContactSupportHtml({ submitterName, submitterEmail, message, submittedAt, ip, userAgent })
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Resend returned an error while sending contact notification.');
   }
 };
